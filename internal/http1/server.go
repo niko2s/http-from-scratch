@@ -1,6 +1,7 @@
 package http1
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,7 +19,16 @@ func ListenAndServe(addr string, handler http.Handler) error {
 	}
 
 	for {
-		panic("ListenAndServe: Not implemented")
+		listener, err := listener.Accept()
+		if err != nil {
+			return fmt.Errorf("accept: %w", err)
+		}
+		err = HandleConnection(listener, handler)
+		if err != nil {
+			return fmt.Errorf("handle: %w", err)
+		}
+
+		//panic("ListenAndServe: Not implemented")
 		/*
 				Functions that might be useful:
 				* listener.Accept()
@@ -28,10 +38,16 @@ func ListenAndServe(addr string, handler http.Handler) error {
 }
 
 func HandleConnection(conn net.Conn, mux http.Handler) error {
-	panic("HandleConnection: Not Implemented")
-	/*
-			Functions that might be useful:
-			* ParseRequest()
-		  * mux.ServeHTTP()
-	*/
+	fmt.Println("handling connection")
+	reader := bufio.NewReader(conn)
+
+	req, err := ParseRequest(reader)
+	if err != nil {
+		return err
+	}
+
+	resp := NewResponse(conn)
+	mux.ServeHTTP(resp, req)
+
+	return nil
 }
