@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Response struct {
@@ -13,7 +14,11 @@ type Response struct {
 }
 
 func NewResponse(conn net.Conn) *Response {
-	return &Response{conn: conn, h: http.Header{}}
+	h := http.Header{}
+	h.Add("Server", "myserver/1.0")
+	h.Add("Date", time.Now().UTC().Format(http.TimeFormat))
+	h.Add("Content-Type", "text/plain")
+	return &Response{conn: conn, h: h}
 }
 
 func (r *Response) Header() http.Header {
@@ -26,10 +31,6 @@ func (r *Response) Write(data []byte) (n int, err error) {
 
 	if err != nil {
 		return 0, fmt.Errorf("error writing response: %s", err)
-	}
-	err = r.conn.Close()
-	if err != nil {
-		return 0, err
 	}
 	return nn, nil
 
