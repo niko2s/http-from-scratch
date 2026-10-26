@@ -3,8 +3,10 @@ package http1
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -74,8 +76,30 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 		req.Header.Add(kv[0], kv[1])
 
 	}
+	if method == http.MethodGet {
+		req.Body = http.NoBody
+		return req, nil
+	}
 
-	//fmt.Printf("printing headers:\n %s", req.Header)
+	if method == http.MethodPost {
+		clStr := req.Header.Get("Content-Length")
+		cl, _ := strconv.ParseInt(clStr, 10, 64)
+		if cl > 0 {
+			req.Body = io.NopCloser(io.LimitReader(reader, cl))
+		}
+		fmt.Println("POST")
+		//debug
+		// readBody(req)
+	}
 
 	return req, nil
+}
+
+func readBody(req *http.Request) {
+	defer req.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(req.Body)
+
+	bodyString := string(bodyBytes)
+	fmt.Println("Received body:", bodyString)
 }
