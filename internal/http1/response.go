@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -26,6 +27,9 @@ func (r *Response) Header() http.Header {
 }
 
 func (r *Response) Write(data []byte) (n int, err error) {
+
+	r.Header().Add("Content-Length", strconv.Itoa(len(data)))
+	r.WriteHeader(200)
 
 	nn, err := r.conn.Write(data)
 
