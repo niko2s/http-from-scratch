@@ -2,7 +2,9 @@ package http1
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 )
@@ -41,13 +43,19 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 	fmt.Println("handling connection")
 	reader := bufio.NewReader(conn)
 
-	req, err := ParseRequest(reader)
-	if err != nil {
-		return err
-	}
+	for {
+		req, err := ParseRequest(reader)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 
-	resp := NewResponse(conn)
-	mux.ServeHTTP(resp, req)
+			return err
+		}
+
+		resp := NewResponse(conn)
+		mux.ServeHTTP(resp, req)
+	}
 
 	return nil
 }

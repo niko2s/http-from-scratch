@@ -10,8 +10,10 @@ import (
 )
 
 type Response struct {
-	conn net.Conn
-	h    http.Header
+	conn        net.Conn
+	h           http.Header
+	wroteHeader bool
+	statusCode  int
 }
 
 func NewResponse(conn net.Conn) *Response {
@@ -28,9 +30,26 @@ func (r *Response) Header() http.Header {
 
 func (r *Response) Write(data []byte) (n int, err error) {
 
-	r.Header().Add("Content-Length", strconv.Itoa(len(data)))
-	r.WriteHeader(200)
+	if !r.wroteHeader {
+		r.WriteHeader(200)
+	}
 
+	r.Header().Add("Content-Length", strconv.Itoa(len(data)))
+
+	// write header to conn
+	var header strings.Builder
+
+	statusLine := fmt.Sprintf("HTTP/1.1 %d %s\r\n", r.statusCode, http.StatusText(r.statusCode))
+	header.WriteString(statusLine)
+	for k, values := range r.h {
+		for _, v := range values {
+			header.WriteString(fmt.Sprintf("%s: %v\r\n", k, v))
+		}
+	}
+	header.WriteString("\r\n")
+	r.conn.Write([]byte(header.String()))
+
+	// write data to conn
 	nn, err := r.conn.Write(data)
 
 	if err != nil {
@@ -42,16 +61,9 @@ func (r *Response) Write(data []byte) (n int, err error) {
 
 func (r *Response) WriteHeader(statusCode int) {
 
-	var header strings.Builder
-
-	statusLine := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, http.StatusText(statusCode))
-	header.WriteString(statusLine)
-	for k, values := range r.h {
-		for _, v := range values {
-			header.WriteString(fmt.Sprintf("%s: %v\r\n", k, v))
-		}
+	if r.wroteHeader {
+		return
 	}
-	header.WriteString("\r\n")
-
-	r.conn.Write([]byte(header.String()))
+	r.wroteHeader = true
+	r.statusCode = statusCode
 }

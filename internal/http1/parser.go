@@ -35,6 +35,7 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 		return nil, err
 	}
 
+	requestLine = strings.TrimSuffix(requestLine, "\r\n")
 	requestLineArr := strings.Split(requestLine, " ")
 	if len(requestLineArr) != 3 {
 		return nil, fmt.Errorf("invalid request line")
@@ -44,6 +45,10 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 	target := requestLineArr[1]
 	httpVer := requestLineArr[2]
 
+	if httpVer != "HTTP/1.1" {
+		return nil, fmt.Errorf("invalid http version: %s, only HTTP/1.1 supported", httpVer)
+	}
+
 	fmt.Printf("method: %s, target: %s, httpVer: %s\n", method, target, httpVer)
 
 	req.Method = method
@@ -51,6 +56,8 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing request url")
 	}
+	req.ProtoMajor = 1
+	req.ProtoMinor = 1
 
 	//parse header k:v
 	for {
@@ -64,7 +71,6 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 			fmt.Printf("%s\n", err)
 		}
 		if len(line) == 0 {
-			fmt.Println("done")
 			break
 		}
 
