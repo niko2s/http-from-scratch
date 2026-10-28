@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 )
 
 func ListenAndServe(addr string, handler http.Handler) error {
@@ -40,7 +41,6 @@ func ListenAndServe(addr string, handler http.Handler) error {
 }
 
 func HandleConnection(conn net.Conn, mux http.Handler) error {
-	fmt.Println("handling connection")
 	reader := bufio.NewReader(conn)
 
 	for {
@@ -53,11 +53,23 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 			}
 			if errors.Is(err, ErrVersionNotSupported) {
 				resp.WriteHeader(http.StatusHTTPVersionNotSupported)
+			} else if errors.Is(err, ErrUriTooLong) {
+				resp.WriteHeader(http.StatusRequestURITooLong)
+			} else if errors.Is(err, ErrTooManyHeaders) {
+				resp.WriteHeader(http.StatusRequestHeaderFieldsTooLarge)
 			} else {
 				resp.WriteHeader(http.StatusBadRequest)
 			}
 			resp.Write(nil)
 			return nil
+		}
+
+		closeConn := shouldClose(req)
+
+		if closeConn {
+			resp.Header().Set("Connection", "close")
+		} else if req.ProtoMinor == 0 {
+			resp.Header().Set("Connection", "keep-alive")
 		}
 
 		mux.ServeHTTP(resp, req)
@@ -71,5 +83,18 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 			io.Copy(io.Discard, req.Body)
 			req.Body.Close()
 		}
+
+		if closeConn {
+			return nil
+		}
 	}
+}
+
+func shouldClose(req *http.Request) bool {
+	conn := req.Header.Get("Connection")
+	minor := req.ProtoMinor
+	if minor == 0 {
+		return !strings.EqualFold(conn, "keep-alive")
+	}
+	return strings.EqualFold(conn, "close")
 }
