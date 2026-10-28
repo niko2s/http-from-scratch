@@ -2,6 +2,7 @@ package http1
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,24 +11,12 @@ import (
 	"strings"
 )
 
-// debug
-func printAll(reader *bufio.Reader) {
-	for {
-		l, _, _ := reader.ReadLine()
-		if len(l) == 0 {
-			break
-		}
-
-		fmt.Printf("%s\n", string(l))
-	}
-	fmt.Printf("\n\n---- printAll end ----\n\n")
-}
+var (
+	ErrVersionNotSupported = errors.New("http version not supported")
+	ErrBadRequest          = errors.New("bad request")
+)
 
 func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
-
-	//debug for comparison
-	//printAll(reader)
-
 	req := &http.Request{Header: http.Header{}}
 
 	requestLine, err := reader.ReadString('\n')
@@ -45,8 +34,29 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 	target := requestLineArr[1]
 	httpVer := requestLineArr[2]
 
-	if httpVer != "HTTP/1.1" {
-		return nil, fmt.Errorf("invalid http version: %s, only HTTP/1.1 supported", httpVer)
+	if !isToken(method) {
+		return nil, fmt.Errorf("%w: invalid method: %q", ErrBadRequest, method)
+	}
+
+	verArr := strings.Split(strings.TrimPrefix(httpVer, "HTTP/"), ".")
+	if !strings.HasPrefix(httpVer, "HTTP/") || len(verArr) != 2 {
+		return nil, fmt.Errorf("%w: http version: %s", ErrBadRequest, httpVer)
+	}
+
+	major, err := strconv.Atoi(verArr[0])
+	if err != nil {
+		return nil, fmt.Errorf("%w: http version: %s, major not a number", ErrBadRequest, httpVer)
+	}
+	minor, err := strconv.Atoi(verArr[1])
+	if err != nil {
+		return nil, fmt.Errorf("%w: http version: %s, minor not a number", ErrBadRequest, httpVer)
+	}
+
+	if major != 1 {
+		return nil, fmt.Errorf("%w: major: %d not supported", ErrVersionNotSupported, major)
+	}
+	if minor != 0 && minor != 1 {
+		return nil, fmt.Errorf("%w: minor: %d not supported", ErrVersionNotSupported, minor)
 	}
 
 	fmt.Printf("method: %s, target: %s, httpVer: %s\n", method, target, httpVer)
@@ -68,24 +78,22 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 			fmt.Printf("isPrefix %t\n", prefix)
 		}
 		if err != nil {
-			fmt.Printf("%s\n", err)
+			return nil, fmt.Errorf("%w: reading header: %s", ErrBadRequest, err)
 		}
 		if len(line) == 0 {
 			break
 		}
 
-		kv := strings.Split(header, ": ")
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("invalid header")
+		kv := strings.SplitN(header, ":", 2)
+		if len(kv) != 2 || !isToken(kv[0]) || strings.ContainsAny(kv[1], "\t\r") {
+			return nil, fmt.Errorf("%w: invalid header: %q", ErrBadRequest, header)
 		}
 
-		req.Header.Add(kv[0], kv[1])
+		req.Header.Add(kv[0], strings.TrimSpace(kv[1]))
 
 	}
-	if method == http.MethodGet {
-		req.Body = http.NoBody
-		return req, nil
-	}
+
+	req.Body = http.NoBody
 
 	if method == http.MethodPost {
 		clStr := req.Header.Get("Content-Length")
@@ -94,18 +102,22 @@ func ParseRequest(reader *bufio.Reader) (*http.Request, error) {
 			req.Body = io.NopCloser(io.LimitReader(reader, cl))
 		}
 		fmt.Println("POST")
-		//debug
-		// readBody(req)
 	}
 
 	return req, nil
 }
 
-func readBody(req *http.Request) {
-	defer req.Body.Close()
-
-	bodyBytes, _ := io.ReadAll(req.Body)
-
-	bodyString := string(bodyBytes)
-	fmt.Println("Received body:", bodyString)
+// only letters, digits, '-' and '_'
+func isToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		isLetter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+		isDigit := c >= '0' && c <= '9'
+		if !isLetter && !isDigit && c != '-' && c != '_' {
+			return false
+		}
+	}
+	return true
 }

@@ -13,6 +13,7 @@ type Response struct {
 	conn        net.Conn
 	h           http.Header
 	wroteHeader bool
+	wroteBody   bool
 	statusCode  int
 }
 
@@ -33,6 +34,7 @@ func (r *Response) Write(data []byte) (n int, err error) {
 	if !r.wroteHeader {
 		r.WriteHeader(200)
 	}
+	r.wroteBody = true
 
 	r.Header().Add("Content-Length", strconv.Itoa(len(data)))
 

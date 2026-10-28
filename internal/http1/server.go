@@ -44,18 +44,32 @@ func HandleConnection(conn net.Conn, mux http.Handler) error {
 	reader := bufio.NewReader(conn)
 
 	for {
+		resp := NewResponse(conn)
+
 		req, err := ParseRequest(reader)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
-
-			return err
+			if errors.Is(err, ErrVersionNotSupported) {
+				resp.WriteHeader(http.StatusHTTPVersionNotSupported)
+			} else {
+				resp.WriteHeader(http.StatusBadRequest)
+			}
+			resp.Write(nil)
+			return nil
 		}
 
-		resp := NewResponse(conn)
 		mux.ServeHTTP(resp, req)
-	}
 
-	return nil
+		// handler wrote nothing, still send a response
+		if !resp.wroteBody {
+			resp.Write(nil)
+		}
+
+		if req.Body != nil {
+			io.Copy(io.Discard, req.Body)
+			req.Body.Close()
+		}
+	}
 }
