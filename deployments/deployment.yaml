@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-http-server
+  labels:
+    app: my-http-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-http-server
+  template:
+    metadata:
+      name: my-http-server
+      labels:
+        app: my-http-server
+    spec:
+      containers:
+        - name: my-http-server
+          image: myhttpserver
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+      restartPolicy: Always
+      

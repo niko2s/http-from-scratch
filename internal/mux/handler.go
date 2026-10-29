@@ -1,8 +1,10 @@
 package mux
 
 import (
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type MyHandler struct {
@@ -27,6 +29,11 @@ func (h MyHandler) HandleFunc(pattern string, handler func(http.ResponseWriter, 
 }
 
 func (h MyHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	start := time.Now()
+	defer func() {
+		log.Printf("%s %s %s (%s)", request.Method, request.URL.Path, request.RemoteAddr, time.Since(start))
+	}()
+	
 	pattern := request.URL.Path
 	fn := h.searchFnByPattern(pattern)
 	if fn == nil {
