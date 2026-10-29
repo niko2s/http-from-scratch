@@ -4,6 +4,8 @@ import (
 	"httpServer/internal/http1"
 	"httpServer/internal/mux"
 	"net/http"
+
+	"github.com/VictoriaMetrics/metrics"
 )
 
 const addr = ":8080"
@@ -19,6 +21,10 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		body := []byte("default")
 		w.Write(body)
+	})
+
+	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+		metrics.WritePrometheus(w, true)
 	})
 
 	if err := http1.ListenAndServe(addr, mux); err != nil {

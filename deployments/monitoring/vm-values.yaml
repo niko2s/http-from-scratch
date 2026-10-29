@@ -1,0 +1,15 @@
+vlsingle:
+  enabled: true
+
+vlagent:
+  enabled: true
+  spec:
+    k8sCollector:
+      enabled: true
+
+grafana:
+  plugins:
+    - victoriametrics-logs-datasource
+
+vtsingle:
+  enabled: true

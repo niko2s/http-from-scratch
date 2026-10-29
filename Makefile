@@ -5,10 +5,10 @@ kind-load: image
 	kind load docker-image myhttpserver
 
 deploy-local: kind-load
-	kubectl apply -f deployments/
+	kubectl apply -f deployments/app/
 
 kind-delete:
-	kubectl delete -f deployments/
+	kubectl delete -f deployments/app/
 
 
 redeploy: kind-load
