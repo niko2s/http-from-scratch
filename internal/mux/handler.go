@@ -1,13 +1,8 @@
 package mux
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"strings"
-	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 )
 
 type MyHandler struct {
@@ -32,17 +27,6 @@ func (h MyHandler) HandleFunc(pattern string, handler func(http.ResponseWriter, 
 }
 
 func (h MyHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	start := time.Now()
-	defer func() {
-		log.Printf("%s %s %s (%s)", request.Method, request.URL.Path, request.RemoteAddr, time.Since(start))
-
-		// Record request latency into a histogram
-		metrics.GetOrCreateHistogram(fmt.Sprintf(`http_request_duration_seconds{path="%s"}`, request.URL.Path)).UpdateDuration(start)
-	}()
-
-	// Increment hit counter
-	metrics.GetOrCreateCounter(fmt.Sprintf(`http_requests_total{path="%s"}`, request.URL.Path)).Inc()
-
 	pattern := request.URL.Path
 	fn := h.searchFnByPattern(pattern)
 	if fn == nil {

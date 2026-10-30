@@ -1,7 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-http-server
   labels:
     app: my-http-server
 spec:
@@ -21,5 +20,8 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 8080
+          env:
+            - name: VT_TRACES_ENDPOINT
+              value: "http://vtsingle-my-victoria-metrics-k8s-stack.default.svc.cluster.local:10428/insert/opentelemetry/v1/traces"
       restartPolicy: Always
       
